@@ -1,5 +1,6 @@
 import subprocess
 from datetime import datetime
+import sys
 
 def read_ips(filename):
 	with open(filename) as f:
@@ -13,7 +14,15 @@ def is_up(ip):
 	return result.returncode == 0
 
 def main():
-	ips = read_ips("ips.txt")
+	if len(sys.argv) > 1:
+		filename = sys.argv[1]
+	else:
+		filename = "ips.txt"
+	try:
+		ips = read_ips(filename)
+	except FileNotFoundError:
+		print(f"Could not find {filename} - create it with one target per line.")
+		sys.exit(1)
 	timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 	report_name = f"report_{timestamp}.txt"
 	
