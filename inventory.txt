@@ -1,0 +1,7 @@
+dns,8.8.8.8
+dns2,4.2.2.4
+core-sw,10.10.10.10
+google,google.com
+yahoo,yahoo.com
+router,180.34.56.23
+
