@@ -5,7 +5,7 @@ file, pings each one, and writes a timestamped up/down report.
 
 ## What it does
 
-Reads targets from `ips.txt` (one per line), sends a single ICMP echo to each,
+Reads targets from `inventory.txt` (one per line), sends a single ICMP echo to each,
 and records whether it replied. Results are printed to the screen and saved to a
 timestamped file so every run is kept as a record.
 
@@ -16,7 +16,7 @@ timestamped file so every run is kept as a record.
 
 ## Usage
 
-1. List your targets in `ips.txt`, one per line:
+1. List your targets in `inventory.txt`, one per line:
 
 ```
    8.8.8.8
@@ -27,16 +27,22 @@ timestamped file so every run is kept as a record.
 2. Run the script:
 
 ```bash
-   python3 ip_checker.py
+   python3 ping.py
 ```
 
 3. Output appears on screen and in a report file named
    `report_YYYY-MM-DD_HH-MM-SS.txt`:
 
 ```
-   8.8.8.8          UP
-   google.com       UP
-   192.168.1.1      DOWN
+ Ping report - 2026-06-13_14-44-11
+4 UP, 2 DOWN
+----------------------------------------
+dns          (8.8.8.8        ) UP
+dns2         (4.2.2.4        ) UP
+core-sw      (10.10.10.10    ) DOWN
+google       (google.com     ) UP
+yahoo        (yahoo.com      ) UP
+router       (180.34.56.23   ) DOWN
 ```
 
 ## Limitations
