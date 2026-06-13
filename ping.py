@@ -1,15 +1,24 @@
 import subprocess
 from datetime import datetime
+import sys
 
 def read_inventory(filename):
     inv = {}
-    with open(filename) as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            name, ip = line.split(",")
-            inv[name] = ip
+    try:
+        with open(filename) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    name, ip = line.split(",")
+                except ValueError:
+                    print(f"Skipping bad line: {line}")
+                    continue
+                inv[name] = ip
+    except FileNotFoundError:
+        print(f"Error: could not find {filename}")
+        sys.exit(1)
     return inv
 
 def is_up(ip):
@@ -39,7 +48,8 @@ def write_report(results):
     return report_name
 
 def main():
-    inventory = read_inventory("inventory.txt")
+    filename = sys.argv[1] if len(sys.argv) > 1 else "inventory.txt"
+    inventory = read_inventory(filename)
 
     results = {}
     for name, ip in inventory.items():
