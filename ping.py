@@ -3,6 +3,7 @@ import sys
 import logging
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +32,13 @@ def read_inventory(filename):
 def is_up(ip):
     try:
         result = subprocess.run(
-            ["ping", "-c", "1", ip],
+            ["ping", "-c", "1", "-w", "1", ip],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=2,
         )
     except subprocess.TimeoutExpired:
         return False
-    except FileNotFoundError:
-        logger.error("ping binary not found on PATH")
-        sys.exit(1)
     return result.returncode == 0
 
 
@@ -70,6 +68,10 @@ def main():
     )
     filename = sys.argv[1] if len(sys.argv) > 1 else "inventory.txt"
     inventory = read_inventory(filename)
+
+    if shutil.which("ping") is None:
+        logger.error("ping binary not found on PATH")
+        sys.exit(1)
 
     names = list(inventory.keys())
     ips = list(inventory.values())
