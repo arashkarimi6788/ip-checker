@@ -1,9 +1,14 @@
 import subprocess
-from datetime import datetime
 import sys
+import logging
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+
+logger = logging.getLogger(__name__)
+
 
 def read_inventory(filename):
-    inv = {}
+    inventory = {}
     try:
         with open(filename) as f:
             for line in f:
@@ -13,21 +18,31 @@ def read_inventory(filename):
                 try:
                     name, ip = line.split(",")
                 except ValueError:
-                    print(f"Skipping bad line: {line}")
+                    logger.warning("Skipping malformed line: %s", line)
                     continue
-                inv[name] = ip
+                inventory[name.strip()] = ip.strip()
     except FileNotFoundError:
-        print(f"Error: could not find {filename}")
+        logger.error("Inventory file not found: %s", filename)
+        print(f"{filename} not found")
         sys.exit(1)
-    return inv
+    return inventory
+
 
 def is_up(ip):
-    result = subprocess.run(
-        ["ping", "-c", "1", "-W", "1", ip],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        result = subprocess.run(
+            ["ping", "-c", "1", ip],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+    except subprocess.TimeoutExpired:
+        return False
+    except FileNotFoundError:
+        logger.error("ping binary not found on PATH")
+        sys.exit(1)
     return result.returncode == 0
+
 
 def write_report(results):
     up_count = 0
@@ -35,7 +50,6 @@ def write_report(results):
         if data["status"] == "UP":
             up_count += 1
     down_count = len(results) - up_count
-
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     report_name = f"report_{timestamp}.txt"
     with open(report_name, "w") as report:
@@ -47,18 +61,33 @@ def write_report(results):
             report.write(line + "\n")
     return report_name
 
+
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        filename="ping.log",
+    )
     filename = sys.argv[1] if len(sys.argv) > 1 else "inventory.txt"
     inventory = read_inventory(filename)
 
+    names = list(inventory.keys())
+    ips = list(inventory.values())
+    with ThreadPoolExecutor(max_workers=50) as executor:
+        statuses = executor.map(is_up, ips)	#parallel, order preserved
+
     results = {}
-    for name, ip in inventory.items():
+    for name, ip, up in zip(names, ips, statuses):
         status = "UP" if is_up(ip) else "DOWN"
         results[name] = {"ip": ip, "status": status}
         print(f"{name:<12} ({ip:<15}) {status}")
-
+        if status == "UP":
+            logger.info("%s is UP", name)
+        else:
+            logger.warning("%s is DOWN (no ICMP reply)", name)
     report_name = write_report(results)
     print(f"\nReport written to {report_name}")
+
 
 if __name__ == "__main__":
     main()
