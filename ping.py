@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 import shutil
+import argparse
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +67,23 @@ def main():
         format="%(asctime)s %(levelname)s %(message)s",
         filename="ping.log",
     )
-    filename = sys.argv[1] if len(sys.argv) > 1 else "inventory.txt"
-    inventory = read_inventory(filename)
+
+    parser = argparse.ArgumentParser(description="Ping a named inventory of hosts")
+    parser.add_argument(
+        "inventory",
+        nargs="?",
+        default="inventory.txt",
+        help="CSV inventory file (name,ip per line). Defaults to inventory.txt",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=50,
+        help="Number of parallel ping workers (default: 50)",
+    )
+    args = parser.parse_args()
+
+    inventory = read_inventory(args.inventory)
 
     if shutil.which("ping") is None:
         logger.error("ping binary not found on PATH")
@@ -75,18 +91,20 @@ def main():
 
     names = list(inventory.keys())
     ips = list(inventory.values())
-    with ThreadPoolExecutor(max_workers=50) as executor:
+
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
         statuses = executor.map(is_up, ips)	#parallel, order preserved
 
-    results = {}
-    for name, ip, up in zip(names, ips, statuses):
-        status = "UP" if is_up(ip) else "DOWN"
-        results[name] = {"ip": ip, "status": status}
-        print(f"{name:<12} ({ip:<15}) {status}")
-        if status == "UP":
-            logger.info("%s is UP", name)
-        else:
-            logger.warning("%s is DOWN (no ICMP reply)", name)
+        results = {}
+        for name, ip, up in zip(names, ips, statuses):
+            status = "UP" if up else "DOWN"
+            results[name] = {"ip": ip, "status": status}
+            print(f"{name:<12} ({ip:<15}) {status}")
+            if status == "UP":
+                logger.info("%s is UP", name)
+            else:
+                logger.warning("%s is DOWN (no ICMP reply)", name)
+
     report_name = write_report(results)
     print(f"\nReport written to {report_name}")
 
