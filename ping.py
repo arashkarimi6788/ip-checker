@@ -5,6 +5,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 import shutil
 import argparse
+from functools import partial
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +31,13 @@ def read_inventory(filename):
     return inventory
 
 
-def is_up(ip):
+def is_up(ip, timeout):
     try:
         result = subprocess.run(
-            ["ping", "-c", "1", "-w", "1", ip],
+            ["ping", "-c", "1", "-w", str(timeout), ip],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=2,
+            timeout=timeout + 1,
         )
     except subprocess.TimeoutExpired:
         return False
@@ -81,6 +82,13 @@ def main():
         default=50,
         help="Number of parallel ping workers (default: 50)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=2,
+        help="Timeout of ping command per ip (default: 2)",
+    )
+
     args = parser.parse_args()
 
     inventory = read_inventory(args.inventory)
@@ -92,8 +100,10 @@ def main():
     names = list(inventory.keys())
     ips = list(inventory.values())
 
+    ping_with_timeout = partial(is_up, timeout=args.timeout)
+
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        statuses = executor.map(is_up, ips)	#parallel, order preserved
+        statuses = executor.map(ping_with_timeout, ips)	#parallel, order preserved
 
         results = {}
         for name, ip, up in zip(names, ips, statuses):
