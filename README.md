@@ -1,40 +1,63 @@
 # IP Checker
 
-A small Python script that reads a list of IP addresses or hostnames from a
-file, pings each one, and writes a timestamped up/down report.
+A small Python tool that reads a named inventory of hosts from a file, pings them
+in parallel, and writes a timestamped up/down report.
 
 ## What it does
 
-Reads targets from `inventory.txt` (one per line), sends a single ICMP echo to each,
-and records whether it replied. Results are printed to the screen and saved to a
-timestamped file so every run is kept as a record.
+Reads a CSV inventory (`name,ip` per line), sends a single ICMP echo to each host
+concurrently using a thread pool, and records whether it replied. Results are
+printed to the screen, saved to a timestamped report file, and logged to
+`ping.log` so every run is kept as a record.
 
 ## Requirements
 
 - Python 3 (standard library only — nothing to install)
-- Linux or macOS (uses the `-c` and `-W` ping flags; Windows ping differs)
+- Linux or macOS (uses the `-c` and `-w` ping flags; Windows ping differs)
 
 ## Usage
 
-1. List your targets in `inventory.txt`, one per line:
+1. List your hosts in `inventory.txt`, one `name,ip` pair per line:
 
 ```
-   8.8.8.8
-   google.com
-   192.168.1.1
+dns,8.8.8.8
+google,google.com
+gateway,192.168.1.1
 ```
 
 2. Run the script:
 
 ```bash
-   python3 ping.py
+python3 ping.py
+```
+
+You can point it at a different inventory file and tune the number of parallel
+workers:
+
+```bash
+python3 ping.py hosts.csv --workers 100
+```
+
+Full options:
+
+```
+usage: ping.py [-h] [--workers WORKERS] [inventory]
+
+Ping a named inventory of hosts
+
+positional arguments:
+  inventory          CSV inventory file (name,ip per line). Defaults to inventory.txt
+
+options:
+  -h, --help         show this help message and exit
+  --workers WORKERS  Number of parallel ping workers (default: 50)
 ```
 
 3. Output appears on screen and in a report file named
    `report_YYYY-MM-DD_HH-MM-SS.txt`:
 
 ```
- Ping report - 2026-06-13_14-44-11
+Ping report - 2026-06-13_14-44-11
 4 UP, 2 DOWN
 ----------------------------------------
 dns          (8.8.8.8        ) UP
